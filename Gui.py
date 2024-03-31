@@ -3,7 +3,6 @@ import random
 import tkinter as tk
 import typing
 from tkinter import colorchooser, ttk, messagebox, filedialog
-
 import typing_extensions
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 from matplotlib.figure import Figure
@@ -67,6 +66,8 @@ class Gui(tk.Tk):
         self.oval = 0
         self.add_wall_active = False
         self.add_portal_stage = 0
+        self.intro = 3
+        self.introduction()
 
         # bindings
         self.bind('<B1-Motion>', self._drag)
@@ -81,7 +82,7 @@ class Gui(tk.Tk):
 
     def create_axis(self) -> None:
         """
-        Create the coordinate axes on the canvas.
+        Create the coordinate axis on the canvas.
         :return: None
         """
         mid_x = self.center[0]
@@ -158,6 +159,54 @@ class Gui(tk.Tk):
         self.button5 = tk.Button(self.button_frame, text='Open Stats Window', command=self.stats_window)
         self.button5.grid(row=20, column=0, sticky='ew', columnspan=2)
 
+    def introduction(self) -> None:
+        """
+        The introduction for the app. Displays help text in two seperate stages
+        """
+        def intro1():
+            """
+            Frame 1
+            """
+            self.canvas.create_text(100, 100, text=('Shortcuts: \n'
+                                                    'Space: make all walkers take a step \n'
+                                                    'Shift + drag: enable screen to be moved \n'
+                                                    'Mouse scroll: zoom in/out \n'
+                                                    '(CLICK TO CONTINUE)'), anchor='nw', font=('TkHeadingFont', 20), fill='black')
+
+        def intro2():
+            """
+            Frame 2
+            """
+            self.canvas.create_text(15, 65, text='<-- 1.Type Your Walker\'s Name', anchor='nw', font=('TkHeadingFont', 15), fill='black', )
+            self.canvas.create_text(15, 100, text='<-- 2.Select Your Walker\'s Type \n          '
+                                                  'Type 1: set distance, random direction \n          '
+                                                  'Type 2: random distance, random direction \n          '
+                                                  'Type 3: walks in one of four directions \n          '
+                                                  'Type 4: you set the chances of going in one of \n          '
+                                                  'four directions, or in the direction of (0,0)', anchor='nw', font=('TkHeadingFont', 15), fill='black', )
+            self.canvas.create_text(15, 210, text='<-- 3.Choose Your Walker\'s Color', anchor='nw', font=('TkHeadingFont', 15), fill='black', )
+            self.canvas.create_text(15, 260, text='<-- 4.Create The Walker', anchor='nw', font=('TkHeadingFont', 15), fill='black', )
+            self.canvas.create_text(15, 283, text='\\\n'
+                                                  ' |\n'
+                                                  ' |\n'
+                                                  ' | -- 5.Make Him Walk! \n'
+                                                  ' |\n'
+                                                  ' |\n'
+                                                  '/ \n\n'
+                                                  '(CLICK TO CONTINUE)', anchor='nw', font=('TkHeadingFont', 15), fill='black', )
+        print('hi')
+        if self.intro == 3:
+            self.intro = 2
+            intro1()
+        elif self.intro == 2:
+            self.intro = 1
+            self.canvas.delete('all')
+            intro2()
+        elif self.intro == 1:
+            self.intro = 0
+            self.canvas.delete('all')
+            self.create_axis()
+
     def get_canvas_center(self) -> Tuple[float, float]:
         """
         Return the coordinates of the center of the canvas.
@@ -190,6 +239,7 @@ class Gui(tk.Tk):
             self.walker_names.append(walker1.get_name())
             self.walkers.append(walker1)
             self.select_walker['values'] = self.walker_names
+            messagebox.showinfo("", "Walker Created")
 
     def make_walker_man(self, name: str, type: int, color, graphic=True) -> None:
         """
@@ -213,6 +263,9 @@ class Gui(tk.Tk):
         """
         Iterates over the walkers, performing steps at regular intervals.
         """
+        if self.intro:
+            messagebox.showinfo("Error", "Skip the intro message")
+            return
         # resets the canvas zoom to avoid scale issues
         self.zoomed = 1 / self.zoomed
         self.canvas.scale('all', 0, 0, self.zoomed, self.zoomed)
@@ -238,8 +291,9 @@ class Gui(tk.Tk):
         """
         Move all walkers by calling their step() method.
         """
-        for walker in self.walkers:
-            walker.step()
+        if not self.intro:
+            for walker in self.walkers:
+                walker.step()
 
     def _pre_drag(self, event) -> None:
         """
@@ -249,49 +303,53 @@ class Gui(tk.Tk):
         and performs various actions depending on the state of the application.
         """
         event.widget.focus_set()
-        if not self.add_wall_active and self.add_portal_stage == 0:
-            if (et := event.type.name) == 'ButtonPress' and str(self.focus_get()) == str(self.canvas):
-                self.moving = True
-                self._recent_drag_point_x = event.x
-                self._recent_drag_point_y = event.y
-                self.canvas.scan_mark(event.x, event.y)
-                self.configure(cursor='fleur')
-            elif et == 'ButtonRelease':
-                self.configure(cursor='')
-                self._recent_drag_point_x = None
-                self._recent_drag_point_y = None
-                self.moving = False
+        if not self.intro:
+            if not self.add_wall_active and self.add_portal_stage == 0:
+                if (et := event.type.name) == 'ButtonPress' and str(self.focus_get()) == str(self.canvas):
+                    self.moving = True
+                    self._recent_drag_point_x = event.x
+                    self._recent_drag_point_y = event.y
+                    self.canvas.scan_mark(event.x, event.y)
+                    self.configure(cursor='fleur')
+                elif et == 'ButtonRelease':
+                    self.configure(cursor='')
+                    self._recent_drag_point_x = None
+                    self._recent_drag_point_y = None
+                    self.moving = False
 
     def _drag(self, event) -> None:
         """
         This method is called when the user drags the canvas. It updates the canvas position
         based on the dragged distance and keeps track of the recent drag point.
         """
-        if not self.add_wall_active and self.add_portal_stage == 0:
-            if str(self.focus_get()) == str(self.canvas) and self.moving:
-                self._xshifted += event.x - self._recent_drag_point_x
-                self._yshifted += event.y - self._recent_drag_point_y
-                self.canvas.scan_dragto(event.x, event.y, gain=1)
-                self._recent_drag_point_x = event.x
-                self._recent_drag_point_y = event.y
-                self.canvas.scan_mark(event.x, event.y)
+        if not self.intro:
+            if not self.add_wall_active and self.add_portal_stage == 0:
+                if str(self.focus_get()) == str(self.canvas) and self.moving:
+                    self._xshifted += event.x - self._recent_drag_point_x
+                    self._yshifted += event.y - self._recent_drag_point_y
+                    self.canvas.scan_dragto(event.x, event.y, gain=1)
+                    self._recent_drag_point_x = event.x
+                    self._recent_drag_point_y = event.y
+                    self.canvas.scan_mark(event.x, event.y)
 
     def _zoom(self, event) -> None:
         """
         This method is used to perform zooming functionality on the canvas.
         It scales all the elements on the canvas based on the mouse wheel event.
         """
-        if not self.iterating:
-            if str(self.focus_get()) == str(self.canvas):
-                multiplier = 1.01  # how fast to zoom
-                factor = multiplier ** event.delta
-                self.zoomed *= factor
-                self.canvas.scale('all', 0, 0, factor, factor)
+        if not self.intro:
+            if not self.iterating:
+                if str(self.focus_get()) == str(self.canvas):
+                    multiplier = 1.01  # how fast to zoom
+                    factor = multiplier ** event.delta
+                    self.zoomed *= factor
+                    self.canvas.scale('all', 0, 0, factor, factor)
 
     def on_canvas_click(self, event) -> None:
         """
         The event handler for creating walls and portals
         """
+        self.introduction()
         r = 5
         if self.add_wall_active or self.add_portal_stage == 1:
             if self.click_position == (0.0, 0.0):
@@ -332,21 +390,25 @@ class Gui(tk.Tk):
         """
         Extends the wall or portal on the canvas based on the event.
         """
-        if self.click_position != (0.0, 0.0):
-            if self.add_wall_active or self.add_portal_stage == 1:
-                self.canvas.coords(self.wall, self.click_position[0] - self._xshifted,
-                                   self.click_position[1] - self._yshifted,
-                                   event.x - self._xshifted, event.y - self._yshifted)
-            elif self.add_portal_stage == 2:
-                r = 5
-                self.canvas.coords(self.oval, event.x - self._xshifted - r, event.y - self._yshifted - r,
-                                   event.x - self._xshifted + r,
-                                   event.y - self._yshifted + r)
+        if not self.intro:
+            if self.click_position != (0.0, 0.0):
+                if self.add_wall_active or self.add_portal_stage == 1:
+                    self.canvas.coords(self.wall, self.click_position[0] - self._xshifted,
+                                       self.click_position[1] - self._yshifted,
+                                       event.x - self._xshifted, event.y - self._yshifted)
+                elif self.add_portal_stage == 2:
+                    r = 5
+                    self.canvas.coords(self.oval, event.x - self._xshifted - r, event.y - self._yshifted - r,
+                                       event.x - self._xshifted + r,
+                                       event.y - self._yshifted + r)
 
     def add_wall(self) -> None:
         """
         Called when clicking create wall button
         """
+        if self.intro:
+            messagebox.showinfo("Error", "Skip the intro message")
+            return
         if self.add_portal_stage == 0:
             self.add_wall_active = True
 
@@ -354,6 +416,9 @@ class Gui(tk.Tk):
         """
         Called when clicking create portal button
         """
+        if self.intro:
+            messagebox.showinfo("Error", "Skip the intro message")
+            return
         if self.add_portal_stage == 0 and not self.add_wall_active:
             self.portal_color = colorchooser.askcolor(title="Choose Portal Color")[1]
             self.add_portal_stage = 1
